@@ -413,22 +413,60 @@ async def process_payload(
 @app.post("/api/rotate")
 def trigger_rotation():
     state.initialize()
-    server_before = state.server_identity.credential().version
-    client_before = state.client_identity.current().version
-    state.client_session.rotate()
-    now = int(time.time())
-    state.registry.checkpoint(state.client_identity.identity_uuid(), now + 31)
-    state.client_identity._now_seconds = now + 31
-    state.client_identity.checkpoint()
-    client_after = state.client_identity.current().version
+    try:
+        server_before = state.server_identity.credential().version
+        client_before = state.client_identity.current().version
 
-    return {
-        "status": "ROTATED",
-        "client_previous_version": client_before,
-        "client_new_version": client_after,
-        "server_version": server_before,
-        "message": f"Client rotated from v{client_before} to v{client_after} via successor authorization signature",
-    }
+        # 1. Rollback uncommitted validating credential if exists
+        if state.client_identity._engine.validating() is not None:
+            state.client_identity.rollback()
+
+        # 2. Connect ClientSession & submit successor credential V(n+1) over control channel
+        proxy_cert_pem = (DEMO_DIR / "proxy" / "proxy.crt").read_bytes()
+        server_cred = state.server_identity.credential()
+        server_keys = ServerKeyState()
+        server_keys.set(
+            server_cred.version, server_cred.ed25519_public, server_cred.x25519_public
+        )
+        with ClientSession(
+            state.client_cfg,
+            state.client_identity,
+            server_keys=server_keys,
+        ) as session:
+            session.connect(proxy_cert_pem)
+            session.rotate()
+
+        # 3. Compute T/2 promotion checkpoint time (must exceed fallback_period = rotation_duration / 2)
+        now = int(time.time())
+        fallback_sec = state.registry._params.fallback_period
+        promotion_time = now + fallback_sec + 10
+
+        client_uuid = state.client_identity.identity_uuid()
+
+        # 4. Checkpoint Server Registry (promotes V_next to ACTIVE on server)
+        state.registry.checkpoint(client_uuid, promotion_time)
+
+        # 5. Checkpoint Client Identity State (promotes V_next to ACTIVE on client)
+        state.client_identity._now_seconds = promotion_time
+        state.client_identity.checkpoint()
+
+        # 6. Flush Proxy Registry Cache snapshot
+        if state.proxy_cache:
+            state.proxy_cache.update([])
+
+        client_after = state.client_identity.current().version
+        return {
+            "status": "ROTATED",
+            "client_previous_version": client_before,
+            "client_new_version": client_after,
+            "server_version": server_before,
+            "message": f"Client credential successfully rotated from v{client_before} to v{client_after} (Promoted to ACTIVE at T/2 checkpoint)!",
+        }
+    except Exception as exc:
+        return JSONResponse(
+            {"status": "ERROR", "message": f"Rotation failed: {exc}"},
+            status_code=400,
+        )
 
 
 def main():
