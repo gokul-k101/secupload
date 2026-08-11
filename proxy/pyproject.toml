@@ -1,0 +1,17 @@
+[project]
+name = "sih-proxy"
+version = "0.1.0"
+description = "Proxy: blind relay, tunnel endpoints, registry sync, rotation"
+requires-python = ">=3.11"
+dependencies = ["sih-shared", "sih-client"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+sih-shared = { workspace = true }
+sih-client = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["sih_proxy"]

@@ -1,0 +1,21 @@
+[project]
+name = "sih-server"
+version = "0.1.0"
+description = "Server: identity/credential registries, authn/authz, object storage, audit"
+requires-python = ">=3.11"
+dependencies = [
+    "sih-shared",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "sqlalchemy>=2.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+sih-shared = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["sih_server"]
