@@ -161,8 +161,11 @@
           <div class="field-value" id="s-digest">-</div>
         </div>
         <div class="field-group">
-          <div class="field-label">Decrypted Plaintext Payload</div>
+          <div class="field-label">Decrypted Plaintext / Media Preview</div>
           <div class="field-value" id="s-plaintext">-</div>
+          <div id="s-image-container" style="display: none; margin-top: 10px; text-align: center;">
+            <img id="s-image-preview" src="" alt="Decrypted Media Preview" style="max-width: 100%; max-height: 250px; border-radius: 8px; border: 1px solid var(--border-color);">
+          </div>
         </div>
         <div class="field-group">
           <div class="field-label">Storage Reference</div>
@@ -182,6 +185,11 @@
       <div class="field-group">
         <div class="field-label">Client Primary Decrypted Content Digest</div>
         <div class="field-value" id="d-digest" style="color: var(--accent-green); font-weight: 600;">-</div>
+      </div>
+      <div style="margin-top: 15px;">
+        <a id="d-download-btn" class="btn" download style="display: inline-flex; text-decoration: none;">
+          <i class="fa-solid fa-download"></i> Download Decrypted File
+        </a>
       </div>
     </div>
 

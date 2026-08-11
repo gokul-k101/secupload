@@ -32,7 +32,7 @@ from fastapi.staticfiles import StaticFiles
 from sih_client.api import read_object, write_object
 from sih_client.config import ClientConfig
 from sih_client.identity import ClientIdentity
-from sih_client.session import ClientSession
+from sih_client.session import ClientSession, ServerKeyState
 from sih_proxy.cache import RegistryCache
 from sih_proxy.config import ProxyConfig
 from sih_proxy.identity import ProxyIdentity
@@ -97,7 +97,7 @@ class StateManager:
                 database_url=f"sqlite:///{server_dir / 'server.db'}",
                 storage_dir=server_dir / "objects",
                 data_dir=server_dir / "data",
-                rotation_duration=60,
+                rotation_duration=86400,
                 tunnel2_host="127.0.0.1",
                 tunnel2_port=0,
             )
@@ -154,7 +154,7 @@ class StateManager:
                 server_uuid=self.server_identity.uuid(),
                 data_dir=proxy_dir,
                 enrollment_token=proxy_token,
-                rotation_duration=60,
+                rotation_duration=86400,
             )
             self.proxy_identity = ProxyIdentity(self.proxy_cfg)
             self.proxy_identity.ensure_loaded()
@@ -171,7 +171,7 @@ class StateManager:
                 server_uuid=self.server_identity.uuid(),
                 data_dir=client_dir,
                 enrollment_token=client_token,
-                rotation_duration=60,
+                rotation_duration=86400,
             )
             self.client_identity = ClientIdentity(self.client_cfg)
             self.client_session = ClientSession(self.client_cfg, self.client_identity)
@@ -232,152 +232,182 @@ async def process_payload(
     file: UploadFile | None = File(None),
 ):
     state.initialize()
-    if file and file.filename:
-        content_bytes = await file.read()
-        filename = file.filename
-        file_type = file.content_type or "application/octet-stream"
-    else:
-        content_bytes = payload_text.encode("utf-8")
-        filename = "user_input.txt"
-        file_type = "text/plain"
+    try:
+        if file and file.filename:
+            content_bytes = await file.read()
+            filename = file.filename
+            file_type = file.content_type or "application/octet-stream"
+        else:
+            content_bytes = payload_text.encode("utf-8")
+            filename = "user_input.txt"
+            file_type = "text/plain"
 
-    object_uuid = uuid.uuid4()
-    client_uuid = state.client_identity.identity_uuid()
-    server_uuid = state.server_identity.uuid()
-    proxy_uuid = state.proxy_identity.identity_uuid()
+        object_uuid = uuid.uuid4()
+        client_uuid = state.client_identity.identity_uuid()
+        server_uuid = state.server_identity.uuid()
+        proxy_uuid = state.proxy_identity.identity_uuid()
 
-    # Grant permissions in Server DB
-    with state.session_factory() as db_session:
-        db_session.add(
-            Permissions(
-                client_uuid=str(client_uuid),
-                object_uuid=str(object_uuid),
-                operation="WRITE",
-                policy="ALLOW",
+        # Grant permissions in Server DB
+        with state.session_factory() as db_session:
+            db_session.add(
+                Permissions(
+                    client_uuid=str(client_uuid),
+                    object_uuid=str(object_uuid),
+                    operation="WRITE",
+                    policy="ALLOW",
+                )
             )
-        )
-        db_session.add(
-            Permissions(
-                client_uuid=str(client_uuid),
-                object_uuid=str(object_uuid),
-                operation="READ",
-                policy="ALLOW",
+            db_session.add(
+                Permissions(
+                    client_uuid=str(client_uuid),
+                    object_uuid=str(object_uuid),
+                    operation="READ",
+                    policy="ALLOW",
+                )
             )
+            db_session.commit()
+
+        # --- NODE 1: CLIENT ENCRYPTION ---
+        request_id = uuid.uuid4()
+        ts = int(time.time())
+        nonce = uuid.uuid4().bytes[:12]
+        client_cred = state.client_identity.current()
+        server_cred = state.server_identity.credential()
+        server_keys = ServerKeyState()
+        server_keys.set(
+            server_cred.version, server_cred.ed25519_public, server_cred.x25519_public
         )
-        db_session.commit()
 
-    # --- NODE 1: CLIENT ENCRYPTION ---
-    request_id = uuid.uuid4()
-    ts = int(time.time())
-    nonce = uuid.uuid4().bytes[:12]
-    client_cred = state.client_identity.current()
-    server_keys = state.client_session._server_keys
+        aad = build_aad(
+            client_uuid,
+            server_uuid,
+            request_id,
+            client_cred.version,
+            ts,
+            nonce,
+            0,
+        )
+        ephemeral_pub, ciphertext = seal_message(
+            server_keys.x25519_public, nonce, aad, content_bytes
+        )
+        wrapped_payload = wrap_encrypted(
+            server_keys.version, ephemeral_pub, nonce, ciphertext
+        )
+        envelope = new_envelope(
+            MsgType.REQUEST.value,
+            client_uuid,
+            server_uuid,
+            request_id,
+            client_cred.version,
+            ts,
+            nonce,
+            wrapped_payload,
+        )
+        envelope.sign(state.client_identity.current_keys()[0])
+        envelope_bytes = envelope.encode()
 
-    aad = build_aad(
-        client_uuid,
-        server_uuid,
-        request_id,
-        client_cred.version,
-        ts,
-        nonce,
-        0,
-    )
-    ephemeral_pub, ciphertext = seal_message(
-        server_keys.x25519_public, nonce, aad, content_bytes
-    )
-    wrapped_payload = wrap_encrypted(
-        server_keys.version, ephemeral_pub, nonce, ciphertext
-    )
-    envelope = new_envelope(
-        MsgType.REQUEST.value,
-        client_uuid,
-        server_uuid,
-        request_id,
-        client_cred.version,
-        ts,
-        nonce,
-        wrapped_payload,
-    )
-    envelope.sign(state.client_identity.current_keys()[0])
-    envelope_bytes = envelope.encode()
-
-    client_node = {
-        "node_name": "CLIENT (Origin)",
-        "identity_uuid": str(client_uuid),
-        "credential_version": client_cred.version,
-        "input_size_bytes": len(content_bytes),
-        "filename": filename,
-        "file_type": file_type,
-        "ephemeral_x25519_public_hex": ephemeral_pub.hex(),
-        "nonce_hex": nonce.hex(),
-        "canonical_aad_hex": aad.hex(),
-        "primary_ciphertext_hex": ciphertext.hex(),
-        "envelope_signature_hex": envelope.signature.hex(),
-        "envelope_total_size": len(envelope_bytes),
-        "tls_tunnel": "TLS 1.3 Tunnel 1 (Client ↔ Proxy)",
-    }
-
-    # --- NODE 2: PROXY BLIND RELAY ---
-    proxy_node = {
-        "node_name": "PROXY (Blind Relay)",
-        "identity_uuid": str(proxy_uuid),
-        "tls_tunnel1_status": "Terminated TLS 1.3 Tunnel 1",
-        "tls_tunnel2_status": "Established TLS 1.3 Tunnel 2",
-        "client_auth_verification": "PASSED (Ed25519 Signature Verified against Cache)",
-        "visible_payload_type": "PRIMARY CIPHERTEXT (AES-256-GCM)",
-        "visible_payload_hex": ciphertext.hex()[:128] + "... [TRUNCATED]",
-        "proxy_can_decrypt": False,
-        "proxy_decrypt_reason": "BLIND RELAY: Proxy does not possess Server's X25519 Private Key required for ECDH shared secret derivation.",
-        "relayed_envelope_size": len(envelope_bytes),
-    }
-
-    # --- NODE 3: SERVER DECRYPTION & STORAGE & NODE 4: DOWNLOAD ---
-    proxy_cert_pem = (DEMO_DIR / "proxy" / "proxy.crt").read_bytes()
-    with ClientSession(
-        state.client_cfg,
-        state.client_identity,
-        server_keys=state.client_session._server_keys,
-    ) as session:
-        session.connect(proxy_cert_pem)
-        write_object(session, object_uuid, file_type, content_bytes)
-        downloaded_content = read_object(session, object_uuid)
-
-    obj_info = state.objects.info(object_uuid)
-
-    server_node = {
-        "node_name": "SERVER (Destination & Plaintext Endpoint)",
-        "identity_uuid": str(server_uuid),
-        "tls_tunnel2_status": "Terminated TLS 1.3 Tunnel 2",
-        "client_ed25519_verification": "AUTHENTICATED (Ed25519 Signature Match)",
-        "authorization_policy": "ALLOWED (WRITE Policy Verified)",
-        "decryption_key_used": f"Server X25519 Private Key (v{state.server_identity.credential().version})",
-        "sha256_content_integrity": obj_info.content_integrity,
-        "stored_object_uuid": str(object_uuid),
-        "storage_path": obj_info.storage_reference,
-        "decrypted_plaintext_preview": content_bytes.decode("utf-8", "ignore")[:500]
-        if file_type.startswith("text/")
-        else f"[Binary Data: {len(content_bytes)} bytes]",
-    }
-
-    download_digest = hashlib.sha256(downloaded_content).hexdigest()
-
-    download_node = {
-        "download_status": "SUCCESS",
-        "client_primary_decrypted": True,
-        "downloaded_bytes_count": len(downloaded_content),
-        "download_digest": download_digest,
-        "integrity_matches": download_digest == obj_info.content_integrity,
-    }
-
-    return JSONResponse(
-        {
-            "status": "SUCCESS",
-            "client_node": client_node,
-            "proxy_node": proxy_node,
-            "server_node": server_node,
-            "download_node": download_node,
+        client_node = {
+            "node_name": "CLIENT (Origin)",
+            "identity_uuid": str(client_uuid),
+            "credential_version": client_cred.version,
+            "input_size_bytes": len(content_bytes),
+            "filename": filename,
+            "file_type": file_type,
+            "ephemeral_x25519_public_hex": ephemeral_pub.hex(),
+            "nonce_hex": nonce.hex(),
+            "canonical_aad_hex": aad.hex(),
+            "primary_ciphertext_hex": ciphertext.hex(),
+            "envelope_signature_hex": envelope.signature.hex(),
+            "envelope_total_size": len(envelope_bytes),
+            "tls_tunnel": "TLS 1.3 Tunnel 1 (Client ↔ Proxy)",
         }
-    )
+
+        # --- NODE 2: PROXY BLIND RELAY ---
+        proxy_node = {
+            "node_name": "PROXY (Blind Relay)",
+            "identity_uuid": str(proxy_uuid),
+            "tls_tunnel1_status": "Terminated TLS 1.3 Tunnel 1",
+            "tls_tunnel2_status": "Established TLS 1.3 Tunnel 2",
+            "client_auth_verification": "PASSED (Ed25519 Signature Verified against Cache)",
+            "visible_payload_type": "PRIMARY CIPHERTEXT (AES-256-GCM)",
+            "visible_payload_hex": ciphertext.hex()[:128] + "... [TRUNCATED]",
+            "proxy_can_decrypt": False,
+            "proxy_decrypt_reason": "BLIND RELAY: Proxy does not possess Server's X25519 Private Key required for ECDH shared secret derivation.",
+            "relayed_envelope_size": len(envelope_bytes),
+        }
+
+        # --- NODE 3: SERVER DECRYPTION & STORAGE & NODE 4: DOWNLOAD ---
+        if state.client_identity._engine.validating() is not None:
+            state.client_identity.rollback()
+
+        proxy_cert_pem = (DEMO_DIR / "proxy" / "proxy.crt").read_bytes()
+        with ClientSession(
+            state.client_cfg,
+            state.client_identity,
+            server_keys=server_keys,
+        ) as session:
+            session.connect(proxy_cert_pem)
+            write_object(session, object_uuid, file_type, content_bytes)
+            downloaded_content = read_object(session, object_uuid)
+
+        obj_info = state.objects.info(object_uuid)
+
+        b64_content = base64.b64encode(downloaded_content).decode("ascii")
+        data_uri = f"data:{file_type};base64,{b64_content}"
+        is_image = file_type.startswith("image/")
+        is_text = file_type.startswith("text/") or file_type in ("application/json", "application/xml")
+
+        if is_text:
+            preview_str = downloaded_content.decode("utf-8", "ignore")[:1000]
+        elif is_image:
+            preview_str = f"[Image File ({filename}): {len(downloaded_content)} bytes]"
+        else:
+            preview_str = f"[Binary File ({filename}): {len(downloaded_content)} bytes]"
+
+        server_node = {
+            "node_name": "SERVER (Destination & Plaintext Endpoint)",
+            "identity_uuid": str(server_uuid),
+            "tls_tunnel2_status": "Terminated TLS 1.3 Tunnel 2",
+            "client_ed25519_verification": "AUTHENTICATED (Ed25519 Signature Match)",
+            "authorization_policy": "ALLOWED (WRITE Policy Verified)",
+            "decryption_key_used": f"Server X25519 Private Key (v{state.server_identity.credential().version})",
+            "sha256_content_integrity": obj_info.content_integrity,
+            "stored_object_uuid": str(object_uuid),
+            "storage_path": obj_info.storage_reference,
+            "decrypted_plaintext_preview": preview_str,
+            "is_image": is_image,
+            "data_uri": data_uri,
+        }
+
+        download_digest = hashlib.sha256(downloaded_content).hexdigest()
+
+        download_node = {
+            "download_status": "SUCCESS",
+            "client_primary_decrypted": True,
+            "downloaded_bytes_count": len(downloaded_content),
+            "download_digest": download_digest,
+            "integrity_matches": download_digest == obj_info.content_integrity,
+            "filename": filename,
+            "file_type": file_type,
+            "b64_content": b64_content,
+            "data_uri": data_uri,
+            "is_image": is_image,
+        }
+
+        return JSONResponse(
+            {
+                "status": "SUCCESS",
+                "client_node": client_node,
+                "proxy_node": proxy_node,
+                "server_node": server_node,
+                "download_node": download_node,
+            }
+        )
+    except Exception as exc:
+        return JSONResponse(
+            {"status": "ERROR", "message": str(exc)},
+            status_code=400,
+        )
 
 
 @app.post("/api/rotate")
