@@ -3,6 +3,7 @@ let selectedFile = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   fetchStatus();
+  setupDragAndDrop();
 });
 
 async function fetchStatus() {
@@ -15,6 +16,43 @@ async function fetchStatus() {
   } catch (err) {
     console.error('Failed to fetch status:', err);
   }
+}
+
+function setupDragAndDrop() {
+  const dropzone = document.querySelector('.file-dropzone');
+  if (!dropzone) return;
+
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropzone.addEventListener(eventName, preventDefaults, false);
+  });
+
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropzone.addEventListener(eventName, () => {
+      dropzone.style.borderColor = 'var(--accent-cyan)';
+      dropzone.style.background = 'rgba(0, 242, 255, 0.1)';
+    }, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropzone.addEventListener(eventName, () => {
+      dropzone.style.borderColor = 'var(--border-color)';
+      dropzone.style.background = 'rgba(0, 0, 0, 0.2)';
+    }, false);
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files && files[0]) {
+      selectedFile = files[0];
+      document.getElementById('file-label').innerText = `Selected: ${selectedFile.name} (${selectedFile.size} bytes)`;
+    }
+  }, false);
 }
 
 function switchTab(tab) {
@@ -44,7 +82,7 @@ async function processPayload() {
     formData.append('payload_text', text);
   } else {
     if (!selectedFile) {
-      alert('Please select a file');
+      alert('Please select a file to upload');
       return;
     }
     formData.append('file', selectedFile);
@@ -94,8 +132,25 @@ function renderNodes(data) {
   document.getElementById('s-plaintext').innerText = s.decrypted_plaintext_preview;
   document.getElementById('s-storage').innerText = s.storage_path;
 
+  // Image Preview Handling
+  const imageContainer = document.getElementById('s-image-container');
+  const imagePreview = document.getElementById('s-image-preview');
+  if (s.is_image && s.data_uri) {
+    imagePreview.src = s.data_uri;
+    imageContainer.style.display = 'block';
+  } else {
+    imageContainer.style.display = 'none';
+  }
+
   // Node 4 Download
   document.getElementById('d-digest').innerText = `${d.download_digest} (100% E2E Integrity Match)`;
+
+  const downloadBtn = document.getElementById('d-download-btn');
+  if (d.data_uri) {
+    downloadBtn.href = d.data_uri;
+    downloadBtn.download = d.filename || 'decrypted_payload';
+    downloadBtn.innerHTML = `<i class="fa-solid fa-download"></i> Download Decrypted (${d.filename || 'file'})`;
+  }
 
   document.getElementById('pipeline-results').style.display = 'grid';
   document.getElementById('download-card').style.display = 'block';
