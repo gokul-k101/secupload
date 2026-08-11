@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIH v3.0 Dual-Tunnel Secure Proxy Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    
+    <!-- Header Banner -->
+    <div class="header-card">
+      <img src="/static/banner.jpg" alt="Dual Tunnel Architecture Banner" class="header-banner">
+      <div class="header-overlay">
+        <h1 class="header-title">
+          <i class="fa-solid => fa-shield-halved"></i> SIH Dual-Tunnel Proxy & E2E Encryption
+        </h1>
+        <p class="header-subtitle">
+          Live Cryptographic Node Inspection • Proxy Blindness Demonstration • SRS v3.0 Architecture
+        </p>
+      </div>
+    </div>
+
+    <!-- Live Status Bar -->
+    <div class="status-bar" id="status-bar">
+      <div class="status-pill">
+        <div class="label">Server Identity</div>
+        <div class="value" id="status-server">Loading...</div>
+      </div>
+      <div class="status-pill">
+        <div class="label">Proxy Relay</div>
+        <div class="value" id="status-proxy">Loading...</div>
+      </div>
+      <div class="status-pill">
+        <div class="label">Client Identity</div>
+        <div class="value" id="status-client">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Input Section -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          <i class="fa-solid fa-file-shield"></i> 1. Submit Payload for Dual-Tunnel Processing
+        </div>
+      </div>
+
+      <div class="input-tabs">
+        <button class="tab-btn active" id="tab-text-btn" onclick="switchTab('text')">Text Input</button>
+        <button class="tab-btn" id="tab-file-btn" onclick="switchTab('file')">File Upload</button>
+      </div>
+
+      <div id="tab-text" class="input-area">
+        <textarea id="payload-text" placeholder="Type confidential text payload here...">Top Secret Confidential Payload — Dual Tunnel Proxy Verification Test Data</textarea>
+      </div>
+
+      <div id="tab-file" class="input-area" style="display: none;">
+        <div class="file-dropzone" onclick="document.getElementById('file-input').click()">
+          <i class="fa-solid fa-cloud-arrow-up" style="font-size: 2rem; color: var(--accent-cyan); margin-bottom: 10px;"></i>
+          <p id="file-label">Click or Drag & Drop File to Upload</p>
+          <input type="file" id="file-input" style="display: none;" onchange="onFileSelected(event)">
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn" onclick="processPayload()">
+          <i class="fa-solid fa-lock"></i> Encrypt & Stream Dual-Tunnel
+        </button>
+        <button class="btn btn-secondary" onclick="triggerRotation()">
+          <i class="fa-solid fa-arrows-rotate"></i> Rotate Credentials (T/2 Checkpoint)
+        </button>
+      </div>
+    </div>
+
+    <!-- Interactive Node Pipeline -->
+    <div class="pipeline-grid" id="pipeline-results" style="display: none;">
+      
+      <!-- Node 1: CLIENT -->
+      <div class="node-card active-node">
+        <div class="node-header">
+          <div class="node-title">
+            <i class="fa-solid fa-laptop-code" style="color: var(--accent-cyan);"></i> Client Node
+          </div>
+          <span class="node-badge badge-cyan">Sender</span>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Logical UUID & Version</div>
+          <div class="field-value" id="c-uuid">-</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Ephemeral X25519 Public Key (ECDH)</div>
+          <div class="field-value" id="c-ephemeral">-</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Nonce & Canonical AAD (HKDF Derived)</div>
+          <div class="field-value" id="c-aad">-</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Primary Ciphertext (AES-256-GCM)</div>
+          <div class="field-value" id="c-ciphertext">-</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Ed25519 Envelope Signature</div>
+          <div class="field-value" id="c-signature">-</div>
+        </div>
+      </div>
+
+      <!-- Node 2: PROXY -->
+      <div class="node-card active-node">
+        <div class="node-header">
+          <div class="node-title">
+            <i class="fa-solid fa-server" style="color: var(--accent-amber);"></i> Proxy Relay Node
+          </div>
+          <span class="node-badge badge-amber">Blind Relay</span>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Proxy Logical UUID</div>
+          <div class="field-value" id="p-uuid">-</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Tunnel 1 & 2 Status</div>
+          <div class="field-value" id="p-tunnels">-</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Client Identity Verification</div>
+          <div class="field-value" id="p-auth">-</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Visible Payload at Proxy Node</div>
+          <div class="field-value" id="p-visible">-</div>
+        </div>
+
+        <div class="proxy-warning-box">
+          <i class="fa-solid fa-eye-slash"></i> <strong>PROXY BLINDNESS CONFIRMED:</strong> Proxy observes <em>only</em> primary ciphertext. It does not possess the Server's X25519 private key required to derive the shared secret.
+        </div>
+      </div>
+
+      <!-- Node 3: SERVER -->
+      <div class="node-card active-node">
+        <div class="node-header">
+          <div class="node-title">
+            <i class="fa-solid fa-database" style="color: var(--accent-green);"></i> Server Endpoint
+          </div>
+          <span class="node-badge badge-green">Plaintext Root</span>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Server UUID & Decryption Key</div>
+          <div class="field-value" id="s-uuid">-</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Authentication & Authorization</div>
+          <div class="field-value" id="s-auth">-</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">SHA-256 Content Digest</div>
+          <div class="field-value" id="s-digest">-</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Decrypted Plaintext Payload</div>
+          <div class="field-value" id="s-plaintext">-</div>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Storage Reference</div>
+          <div class="field-value" id="s-storage">-</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Download & Integrity Verification Section -->
+    <div class="card" id="download-card" style="display: none;">
+      <div class="card-header">
+        <div class="card-title" style="color: var(--accent-green);">
+          <i class="fa-solid fa-circle-check"></i> 4. Client Download & E2E Integrity Match Verification
+        </div>
+      </div>
+      <div class="field-group">
+        <div class="field-label">Client Primary Decrypted Content Digest</div>
+        <div class="field-value" id="d-digest" style="color: var(--accent-green); font-weight: 600;">-</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
