@@ -1,0 +1,16 @@
+[project]
+name = "sih-client"
+version = "0.1.0"
+description = "Client: credential manager, primary encryption, Tunnel 1, CLI"
+requires-python = ">=3.11"
+dependencies = ["sih-shared"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+sih-shared = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["sih_client"]
