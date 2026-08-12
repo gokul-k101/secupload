@@ -1,19 +1,55 @@
+/* ==========================================================================
+   SIH Dual-Tunnel Demo — interface styles
+
+   Light, plain, print-legible. The only saturated colour on the page is the
+   orange accent, and it is reserved for things the operator acts on or must
+   read: the primary button, the active tab, and the proxy blindness result.
+
+   Note on variable names: app.js and a few inline styles in index.html read
+   --accent-cyan, --accent-amber, --accent-green and --border-color directly.
+   The names are kept and the values remapped, so nothing in the demo logic
+   has to change.
+   ========================================================================== */
+
 :root {
-  --bg-primary: #0a0d14;
-  --bg-card: rgba(18, 24, 38, 0.75);
-  --bg-card-hover: rgba(26, 35, 56, 0.85);
-  --accent-cyan: #00f2ff;
-  --accent-purple: #7000ff;
-  --accent-magenta: #f000ff;
-  --accent-green: #00ffaa;
-  --accent-amber: #ffaa00;
-  --accent-red: #ff3366;
-  --text-main: #f0f4fc;
-  --text-muted: #8a99b5;
-  --border-color: rgba(0, 242, 255, 0.15);
-  --border-glow: rgba(0, 242, 255, 0.4);
-  --font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-code: 'Fira Code', monospace;
+  /* Surfaces */
+  --bg-primary: #ffffff;
+  --bg-subtle: #fafaf9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #fafaf9;
+  --bg-inset: #f5f5f4;
+
+  /* Text */
+  --text-main: #1c1917;
+  --text-muted: #78716c;
+  --text-faint: #a8a29e;
+
+  /* Lines */
+  --border-color: #e7e5e4;
+  --border-strong: #d6d3d1;
+
+  /* The one accent. Kept under the old variable name for compatibility. */
+  --accent-cyan: #ea580c;
+  --accent-orange: #ea580c;
+  --accent-orange-dark: #c2410c;
+  --accent-orange-tint: #fff7ed;
+  --accent-orange-line: #fed7aa;
+
+  /* Status colours, desaturated so they read as labels and not as decoration */
+  --accent-green: #15803d;
+  --accent-green-tint: #f0fdf4;
+  --accent-amber: #b45309;
+  --accent-amber-tint: #fffbeb;
+  --accent-red: #b91c1c;
+  --accent-purple: #6b21a8;
+  --accent-magenta: #9d174d;
+
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-code: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 2px rgba(28, 25, 23, 0.05);
 }
 
 * {
@@ -22,319 +58,434 @@
   padding: 0;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  background-color: var(--bg-primary);
-  background-image: 
-    radial-gradient(circle at 15% 15%, rgba(112, 0, 255, 0.12) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(0, 242, 255, 0.1) 0%, transparent 40%);
+  background-color: var(--bg-subtle);
   color: var(--text-main);
   font-family: var(--font-family);
+  font-size: 15px;
+  line-height: 1.55;
   min-height: 100vh;
-  line-height: 1.6;
-  padding-bottom: 50px;
+  padding-bottom: 56px;
+  -webkit-font-smoothing: antialiased;
 }
 
 .container {
-  max-width: 1350px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 32px 24px;
 }
 
-/* Header Banner */
+/* --- Header ------------------------------------------------------------- */
+
 .header-card {
-  position: relative;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  margin-bottom: 30px;
   background: var(--bg-card);
-  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+  overflow: hidden;
 }
 
+/* The stock banner image is gone from the markup. This rule stays so the
+   layout is unaffected if anyone puts one back. */
 .header-banner {
-  width: 100%;
-  height: 220px;
-  object-fit: cover;
-  opacity: 0.85;
+  display: none;
 }
 
 .header-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, rgba(10, 13, 20, 0.95), transparent);
-  padding: 25px 30px;
+  position: static;
+  background: none;
+  padding: 24px 28px;
 }
 
 .header-title {
-  font-size: 2.2rem;
-  font-weight: 700;
-  background: linear-gradient(90deg, #ffffff, var(--accent-cyan));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+.header-title i {
+  color: var(--accent-orange);
+  font-size: 1.1rem;
 }
 
 .header-subtitle {
+  margin-top: 6px;
   color: var(--text-muted);
-  font-size: 1rem;
-  margin-top: 5px;
+  font-size: 0.875rem;
 }
 
-/* Global Status Bar */
+/* --- Status bar --------------------------------------------------------- */
+
 .status-bar {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 30px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .status-pill {
-  flex: 1;
-  min-width: 250px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 15px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  backdrop-filter: blur(8px);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
 }
 
 .status-pill .label {
-  font-size: 0.85rem;
-  color: var(--text-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
 }
 
 .status-pill .value {
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--accent-cyan);
+  margin-top: 4px;
+  font-family: var(--font-code);
+  font-size: 0.8125rem;
+  color: var(--text-main);
+  word-break: break-word;
 }
 
-/* Input Section */
+/* --- Cards -------------------------------------------------------------- */
+
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 25px;
-  margin-bottom: 30px;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px 24px;
+  margin-bottom: 20px;
 }
 
 .card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .card-title {
-  font-size: 1.3rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-main);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
 }
+
+.card-title i {
+  color: var(--accent-orange);
+  font-size: 0.95rem;
+}
+
+/* --- Tabs --------------------------------------------------------------- */
 
 .input-tabs {
   display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 16px;
 }
 
 .tab-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid transparent;
-  color: var(--text-muted);
-  padding: 8px 18px;
-  border-radius: 8px;
-  cursor: pointer;
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 9px 14px;
+  font-family: inherit;
+  font-size: 0.875rem;
   font-weight: 500;
-  transition: all 0.2s ease;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+
+.tab-btn:hover {
+  color: var(--text-main);
 }
 
 .tab-btn.active {
-  background: rgba(0, 242, 255, 0.15);
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
+  color: var(--accent-orange-dark);
+  border-bottom-color: var(--accent-orange);
 }
+
+/* --- Inputs ------------------------------------------------------------- */
 
 .input-area textarea {
   width: 100%;
-  height: 110px;
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  color: var(--text-main);
-  padding: 12px;
-  font-family: var(--font-code);
-  font-size: 0.95rem;
+  min-height: 104px;
   resize: vertical;
+  padding: 12px 14px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  font-family: var(--font-code);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.input-area textarea:focus {
+  outline: none;
+  border-color: var(--accent-orange);
+  box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.12);
+}
+
+.input-area textarea::placeholder {
+  color: var(--text-faint);
 }
 
 .file-dropzone {
-  border: 2px dashed var(--border-color);
-  border-radius: 10px;
-  padding: 30px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  padding: 30px 20px;
   text-align: center;
   cursor: pointer;
-  background: rgba(0, 0, 0, 0.2);
-  transition: all 0.2s ease;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  transition: border-color 0.12s ease, background 0.12s ease;
 }
 
 .file-dropzone:hover {
-  border-color: var(--accent-cyan);
-  background: rgba(0, 242, 255, 0.05);
+  border-color: var(--accent-orange);
+  background: var(--accent-orange-tint);
 }
+
+/* --- Buttons ------------------------------------------------------------ */
 
 .btn-group {
   display: flex;
-  gap: 15px;
-  margin-top: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
 }
 
 .btn {
-  background: linear-gradient(135deg, var(--accent-cyan), #00a6ff);
-  color: #000;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-weight: 700;
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
+  appearance: none;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  transition: transform 0.2s, box-shadow 0.2s;
+  padding: 10px 16px;
+  background: var(--accent-orange);
+  color: #ffffff;
+  border: 1px solid var(--accent-orange);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
 .btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 242, 255, 0.4);
+  background: var(--accent-orange-dark);
+  border-color: var(--accent-orange-dark);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--accent-orange-dark);
+  outline-offset: 2px;
 }
 
 .btn-secondary {
-  background: rgba(112, 0, 255, 0.2);
-  border: 1px solid var(--accent-purple);
-  color: #d1b3ff;
+  background: var(--bg-primary);
+  color: var(--text-main);
+  border-color: var(--border-strong);
 }
 
 .btn-secondary:hover {
-  box-shadow: 0 6px 20px rgba(112, 0, 255, 0.4);
+  background: var(--bg-inset);
+  border-color: var(--border-strong);
 }
 
-/* Node Pipeline Grid */
+/* --- Node pipeline ------------------------------------------------------ */
+
 .pipeline-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 25px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+  align-items: start;
 }
 
 .node-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 22px;
-  position: relative;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  transition: border-color 0.3s;
-}
-
-.node-card.active-node {
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 20px rgba(0, 242, 255, 0.25);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px 20px;
+  min-width: 0;
 }
 
 .node-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .node-title {
-  font-size: 1.15rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+
+.node-title i {
+  font-size: 0.9rem;
 }
 
 .node-badge {
-  font-size: 0.75rem;
-  padding: 3px 10px;
-  border-radius: 20px;
+  flex-shrink: 0;
+  font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
 }
 
-.badge-cyan { background: rgba(0, 242, 255, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan); }
-.badge-amber { background: rgba(255, 170, 0, 0.15); color: var(--accent-amber); border: 1px solid var(--accent-amber); }
-.badge-green { background: rgba(0, 255, 170, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); }
+/* Badge names are kept from the original markup; only the colours changed. */
+.badge-cyan {
+  color: var(--accent-orange-dark);
+  background: var(--accent-orange-tint);
+  border-color: var(--accent-orange-line);
+}
+
+.badge-amber {
+  color: var(--accent-amber);
+  background: var(--accent-amber-tint);
+  border-color: #fde68a;
+}
+
+.badge-green {
+  color: var(--accent-green);
+  background: var(--accent-green-tint);
+  border-color: #bbf7d0;
+}
+
+/* --- Field rows --------------------------------------------------------- */
 
 .field-group {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
+  min-width: 0;
 }
 
-.field-group .field-label {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-  font-weight: 500;
+.field-group:last-child {
+  margin-bottom: 0;
 }
 
-.field-group .field-value {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 8px 12px;
-  border-radius: 8px;
+.field-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin-bottom: 5px;
+}
+
+/* Hex blobs and multi-line AAD dumps both land here. They have to wrap
+   without pushing the grid column wider than its track. */
+.field-value {
   font-family: var(--font-code);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--text-main);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   word-break: break-all;
-  color: #d8e4fc;
+  max-height: 150px;
+  overflow-y: auto;
 }
+
+/* --- Proxy blindness callout -------------------------------------------- */
+/* The single most important sentence on the page, so it gets the accent. */
 
 .proxy-warning-box {
-  background: rgba(255, 51, 102, 0.1);
-  border: 1px solid var(--accent-red);
-  border-radius: 10px;
-  padding: 12px 15px;
-  margin-top: 15px;
-  color: #ff99b3;
-  font-size: 0.85rem;
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--accent-orange-tint);
+  border: 1px solid var(--accent-orange-line);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: #7c2d12;
 }
 
 .proxy-warning-box strong {
-  color: var(--accent-red);
+  color: var(--accent-orange-dark);
+  font-weight: 600;
 }
 
-/* Spinner */
-.spinner {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 3px solid rgba(255,255,255,.3);
-  border-radius: 50%;
-  border-top-color: #fff;
-  animation: spin 1s ease-in-out infinite;
+.proxy-warning-box i {
+  color: var(--accent-orange);
+  margin-right: 4px;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+/* --- Scrollbars inside field values ------------------------------------- */
+
+.field-value::-webkit-scrollbar {
+  width: 8px;
+}
+
+.field-value::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.field-value::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+/* --- Responsive --------------------------------------------------------- */
+
+@media (max-width: 980px) {
+  .pipeline-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .status-bar {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .container {
+    padding: 20px 16px;
+  }
+
+  .header-overlay {
+    padding: 18px 20px;
+  }
+
+  .btn-group .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }
