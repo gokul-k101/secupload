@@ -33,15 +33,15 @@ function setupDragAndDrop() {
 
   ['dragenter', 'dragover'].forEach(eventName => {
     dropzone.addEventListener(eventName, () => {
-      dropzone.style.borderColor = 'var(--accent-cyan)';
-      dropzone.style.background = 'rgba(0, 242, 255, 0.1)';
+      dropzone.style.borderColor = 'var(--accent-orange)';
+      dropzone.style.background = 'var(--accent-orange-tint)';
     }, false);
   });
 
   ['dragleave', 'drop'].forEach(eventName => {
     dropzone.addEventListener(eventName, () => {
-      dropzone.style.borderColor = 'var(--border-color)';
-      dropzone.style.background = 'rgba(0, 0, 0, 0.2)';
+      dropzone.style.borderColor = 'var(--border-strong)';
+      dropzone.style.background = 'var(--bg-inset)';
     }, false);
   });
 
